@@ -10,6 +10,7 @@
 # MAGIC ### Assumptions
 # MAGIC - Bronze tables should contain all data, not filtered by year ("The system should ingest all available CSVs into delta tables")
 # MAGIC - Initilise script has ran to setup volumes etc
+# MAGIC - Kagglehub library installed
 # MAGIC
 
 # COMMAND ----------
