@@ -1,12 +1,25 @@
 # Databricks notebook source
-############################################################
-################# 03 Load to Gold #########################
-#   
-############################################################
+# MAGIC %md
+# MAGIC ## 03_gold
+# MAGIC - Determine unique directors from Netflix credits
+# MAGIC - Filter Netflix titles to Movies data only (remove shows)
+# MAGIC - Join IMDB and Netflix data based on imdb id
+# MAGIC - Join directors to above dataset
+# MAGIC - Use IMDB Score/vote from IMDB file if it exists, use netflix data otherwise
+# MAGIC - Remove data where title is not available
+# MAGIC - Write to gold table
+# MAGIC
+# MAGIC ### Assumptions
+# MAGIC - It is more reliable to join imdb/netflix datasets based on imdb id rather than title/year
+# MAGIC - Data with no movie title is not desired
 
-############################################################
-# Imports, Functions and intilisations
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Imports, Functions and intilisations
+
+# COMMAND ----------
+
 from pyspark.sql.functions import col, lower, trim, when, coalesce, row_number, min as spark_min
 from pyspark.sql.window import Window
 
@@ -18,26 +31,12 @@ netflix_credits = spark.table(f"{SILVER}.silver_netflix_credits")
 imdb_merged     = spark.table(f"{SILVER}.silver_imdb_merged")
 
 
-############################################################
-# Filter IMDB merged data to 1 of the same title per year
-############################################################
+# COMMAND ----------
 
-# For each title and release year, order by imdbScore and imdbVotes
-w_imdb = Window.partitionBy("title", "releaseYear") \
-              .orderBy(col("imdbScore").desc_nulls_last(),
-                       col("imdbVotes").desc_nulls_last())
+# MAGIC %md
+# MAGIC ### Find unique director from Netflix credits
 
-# Filter to first result for each title/year             
-imdb_best = (
-    imdb_merged
-    .withColumn("rn", row_number().over(w_imdb))
-    .filter(col("rn") == 1)
-    .drop("rn")
-)
-
-############################################################
-# Find unique director from Netflix credits
-############################################################
+# COMMAND ----------
 
 directors_only = (
     netflix_credits
@@ -54,29 +53,35 @@ directors_single = (
     .withColumnRenamed("name", "director")
 )
 
-############################################################
-# Filter Netflix Titles to Movies
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Filter Netflix Titles to Movies
+
+# COMMAND ----------
 
 netflix_movies_base = (
     netflix_titles
     .filter(lower(col("type")) == "movie")  # keep only movies
 )
 
-############################################################
-# Left join Netflix Movies to IMDB on imdb ID
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Left join Netflix Movies to IMDB on imdb ID
+
+# COMMAND ----------
 
 # rename columns with identical names from different tables for easier handling later
-imdb_best = (
-    imdb_best
+imdb_merged = (
+    imdb_merged
         .withColumnRenamed("imdbScore", "imdbScore_imdb")
         .withColumnRenamed("imdbVotes", "imdbVotes_imdb")
         .withColumnRenamed("imdbId", "imdbId_imdb")
 )
 
 # select only the columns we'll be using
-imdb_best = imdb_best.select(
+imdb_merged = imdb_merged.select(
         "movieLink",
         "imdbScore_imdb",
         "imdbVotes_imdb",
@@ -92,15 +97,18 @@ netflix_movies_base = (
 netflix_imdb_joined = (
     netflix_movies_base.alias("n")
     .join(
-        imdb_best.alias("i"),
+        imdb_merged.alias("i"),
         lower(col("n.imdbId_netflix")) == lower(col("i.imdbId_imdb")),
         "left"
     )
 )
 
-############################################################
-# Bring in Directors
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Bring in Directors
+
+# COMMAND ----------
 
 netflix_imdb_dir = (
     netflix_imdb_joined.alias("m")
@@ -111,9 +119,12 @@ netflix_imdb_dir = (
     )
 )
 
-############################################################
-# Determine IMDB Score/Vote Sourcing
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Determine IMDB Score/Vote Sourcing
+
+# COMMAND ----------
 
 movies_with_scores = (
     netflix_imdb_dir
@@ -137,9 +148,12 @@ movies_with_scores = (
     )
 )
 
-############################################################
-# Enforce one row per title, releaseYear
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Write to table - Enforce one row per title, releaseYear
+
+# COMMAND ----------
 
 # For each title and release year, order by imdbScore and imdbVotes
 

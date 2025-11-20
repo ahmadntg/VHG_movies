@@ -1,22 +1,28 @@
 # Databricks notebook source
-############################################################
-################# Clean and Load to Silver #################
-#   - Bring through IMDB Merged, Netflix Titles and Netflix Credits  
-#   - Filter IMDB data from 2010 to 2025
-#   - Standardise column names (match imdb to netflix)  
-#   - Trim string columns
-#   - Carry out data type conversions where appropriate
-#   - Extract IMDB ids from URL
-#   - Drop dupes
-#   - Load into silver tables
-############################################################
+# MAGIC %md
+# MAGIC ## 02_silver_clean
+# MAGIC - Bring through IMDB Merged, Netflix Titles and Netflix Credits  
+# MAGIC - Filter IMDB data from 2010 to 2025
+# MAGIC - Standardise column names (match imdb to netflix)  
+# MAGIC - Trim string columns
+# MAGIC - Carry out data type conversions where appropriate
+# MAGIC - Extract IMDB ids from URL
+# MAGIC - Drop dupes
+# MAGIC - Load into silver tables
+# MAGIC
+# MAGIC ### Assumptions
+# MAGIC - Merged imdb data is identical to combination of other 2 imdb files, and no need to bring them through to silver separately
+# MAGIC - Although merged imdb data contains more data than is required for the exercise, there may be future requirements that would benefit from having the extra data loaded into silver - although more work would be required to clean some of the fields that are currently unused
+# MAGIC - Highest number of votes is currently 3m, and is very unlikely to exceed int's threshold
+# MAGIC - Normalisation (e.g. 3nf) is not required for this exercise, although would be helpful at this stage in a real and more complex enterprise model
+# MAGIC
 
+# COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Imports, Functions and intilisations
 
-
-############################################################
-# Imports, Functions and intilisations
-############################################################
+# COMMAND ----------
 
 from pyspark.sql.functions import col, trim, regexp_replace, regexp_extract
 from pyspark.sql.types import IntegerType, DoubleType
@@ -35,9 +41,14 @@ def km_to_int(col_expr):
   
 BRONZE = "bronze_catalog.movies"
 SILVER = "silver_catalog.movies" 
-############################################################
-# Clean and Load IMDB Merged Data
-############################################################
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Clean and Load IMDB Merged Data
+
+# COMMAND ----------
+
 
 imdb_merged_bronze = spark.table(f"{BRONZE}.bronze_imdb_merged")
 
@@ -62,9 +73,12 @@ imdb_merged_silver.write.format("delta") \
     .mode("overwrite") \
     .saveAsTable(f"{SILVER}.silver_imdb_merged")
 
-############################################################
-# Clean and Load Netflix Titles Data
-############################################################
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Clean and Load Netflix Titles Data
+
+# COMMAND ----------
 
 
 netflix_titles_bronze = spark.table(f"{BRONZE}.bronze_netflix_titles")
@@ -86,10 +100,12 @@ netflix_titles_silver.write.format("delta") \
     .mode("overwrite") \
     .saveAsTable(f"{SILVER}.silver_netflix_titles")
 
-############################################################
-# Clean and Load Netflix Credits Data
-############################################################
+# COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Clean and Load Netflix Credits Data
+
+# COMMAND ----------
 
 netflix_credits_bronze = spark.table(f"{BRONZE}.bronze_netflix_credits")
 
